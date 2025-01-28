@@ -388,24 +388,26 @@ class GameScene extends Phaser.Scene {
       this.gameOver();
     }
   }
-
+  
   handleSelfCollision() {
-    // If head overlaps with any other segment, we remove tail behind collision.
     const head = this.snake.head;
+  
+    // Shrink the head's bounding box by 1 pixel on each side
+    let headBounds = head.getBounds();
+    Phaser.Geom.Rectangle.Inflate(headBounds, -1, -1);
+  
     for (let i = 1; i < this.snake.segments.length; i++) {
       let seg = this.snake.segments[i];
-      if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), seg.getBounds())) {
-        // Cut the snake from i
+      let segBounds = seg.getBounds();
+      Phaser.Geom.Rectangle.Inflate(segBounds, -1, -1);
+  
+      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, segBounds)) {
         this.snake.cutTailFrom(i);
-        // If that leaves us with 0 length, game over
-        if (this.snake.segments.length === 0) {
-          this.gameOver();
-        }
+        // cutTailFrom() might end the game if we drop < 2 segments
         break;
       }
     }
   }
-
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
   
@@ -498,39 +500,64 @@ class GameScene extends Phaser.Scene {
   }
 
   createLetter(letter, isCorrect) {
-    // Random position snapped to SEGMENT_SIZE
-    let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
-    let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
-    randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
-    randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
+    // We'll attempt up to 100 random placements so we don't drop a letter on the snake.
+    let maxAttempts = 100;
+    let placed = false;
   
-    // A white rectangle exactly SEGMENT_SIZE x SEGMENT_SIZE
-    let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff)
-      .setOrigin(0);
+    while (!placed && maxAttempts > 0) {
+      maxAttempts--;
   
-    // Outline if you like (optional):
-    // letterRect.setStrokeStyle(1, 0x000000);
+      let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
+      let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
+      randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
+      randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
   
-    // Black text, centered in the rectangle
-    let letterText = this.add.text(
-      randX + SEGMENT_SIZE/2,
-      randY + SEGMENT_SIZE/2,
-      letter,
-      {
-        fontSize: '18px',
-        color: '#000000',
-        fontFamily: 'sans-serif'
+      // Create a white rectangle for the letter's background.
+      let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff).setOrigin(0);
+  
+      // Check overlap with the snake's segments:
+      let letterBounds = letterRect.getBounds();
+      let overlapsSnake = false;
+  
+      for (let s of this.snake.segments) {
+        // Shrink snake’s bounding box slightly to avoid "touch edges = overlap"
+        let segBounds = s.getBounds();
+        Phaser.Geom.Rectangle.Inflate(segBounds, -1, -1);
+  
+        if (Phaser.Geom.Intersects.RectangleToRectangle(letterBounds, segBounds)) {
+          overlapsSnake = true;
+          break;
+        }
       }
-    ).setOrigin(0.5);
   
-    this.lettersOnField.push({
-      letterRect: letterRect,
-      letterText: letterText,
-      letter: letter,
-      correct: isCorrect
-    });
+      if (overlapsSnake) {
+        // This position is invalid; destroy the temp rectangle and try again.
+        letterRect.destroy();
+      } else {
+        // Valid placement, finalize letter creation.
+        let letterText = this.add.text(
+          randX + SEGMENT_SIZE / 2,
+          randY + SEGMENT_SIZE / 2,
+          letter,
+          {
+            fontSize: '18px',
+            color: '#000000',
+            fontFamily: 'sans-serif'
+          }
+        ).setOrigin(0.5);
+  
+        this.lettersOnField.push({
+          letterRect: letterRect,
+          letterText: letterText,
+          letter: letter,
+          correct: isCorrect
+        });
+        placed = true;
+      }
+    }
   }
 
+  
   updatePrimaryWordText() {
     if (this.currentWord) {
       this.primaryWordText.setText(this.currentWord.primary);
