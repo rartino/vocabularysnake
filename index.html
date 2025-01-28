@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Amazegame</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;  /* Hide scrollbars */
+        }
+        #game-container {
+            width: 100%;
+            height: 100%;
+        }
+    </style>   
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+</head>
+<body>
+  <div id="game-container"></div>
+    
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    
+  <script type="module">
+    fetch('./manifest.json')
+        .then(response => response.json())
+        .then(manifest => {
+            window.APP_VERSION = manifest.version;
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = `./game.js?v=${window.APP_VERSION}`;
+            document.body.appendChild(script);
+        })
+        .catch(error => {
+            console.error('Failed to load manifest:', error);
+        });
+  </script>
+
+  <script>
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+    .then(function() {
+       console.log('Service Worker Registered');
+    });
+  }
+</script>
+
+</body>
+</html>

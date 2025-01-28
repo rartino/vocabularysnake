@@ -1,0 +1,2 @@
+# amazegame
+A maze game
