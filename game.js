@@ -551,6 +551,7 @@ class GameScene extends Phaser.Scene {
 
   gameOver() {
     // For now, we’ll just return to BootScene, or you can show a "Game Over" scene
+    console.trace();
     this.scene.start('BootScene');
   }
 
