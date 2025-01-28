@@ -72,7 +72,7 @@ function getRandomWordForLevel(level, random) {
  */
 const ROOM_MARGIN = 40;   // Margin on each side of the "room"
 const SNAKE_SPEED = 5;    // Movement speed in pixels/frame
-const SEGMENT_SIZE = 19;  // Each segment is a 20x20 square
+const SEGMENT_SIZE = 20;  // Each segment is a 20x20 square
 const UPDATE_INTERVAL = 80; // Snake "ticks" (ms per movement update)
 
 // We will place letters randomly in the "room" area
@@ -208,7 +208,7 @@ class BootScene extends Phaser.Scene {
     const titleText = this.add.text(
       this.scale.width / 2, 
       this.scale.height / 2 - 50, 
-      'Vocabulary Snake', 
+      'Vocabulary Snake x', 
       {
         fontSize: '48px', 
         fill: '#ffffff',
@@ -390,19 +390,20 @@ class GameScene extends Phaser.Scene {
   }
 
   handleSelfCollision() {
-    // If head overlaps with any other segment, we remove tail behind collision.
     const head = this.snake.head;
+  
+    // Shrink the head's bounding box by 1 pixel on each side
+    let headBounds = head.getBounds();
+    Phaser.Geom.Rectangle.Inflate(headBounds, -1, -1);
+  
     for (let i = 1; i < this.snake.segments.length; i++) {
       let seg = this.snake.segments[i];
-      if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), seg.getBounds())) {
-        // Cut the snake from i
-        console.log(head.getBounds());
-        console.log(seg.getBounds());
+      let segBounds = seg.getBounds();
+      Phaser.Geom.Rectangle.Inflate(segBounds, -1, -1);
+  
+      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, segBounds)) {
         this.snake.cutTailFrom(i);
-        // If that leaves us with 0 length, game over
-        if (this.snake.segments.length < 2) {
-          this.gameOver();
-        }
+        // cutTailFrom() might end the game if we drop < 2 segments
         break;
       }
     }
