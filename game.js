@@ -72,7 +72,7 @@ function getRandomWordForLevel(level, random) {
  */
 const ROOM_MARGIN = 40;   // Margin on each side of the "room"
 const SNAKE_SPEED = 5;    // Movement speed in pixels/frame
-const SEGMENT_SIZE = 20;  // Each segment is a 20x20 square
+const SEGMENT_SIZE = 19;  // Each segment is a 20x20 square
 const UPDATE_INTERVAL = 80; // Snake "ticks" (ms per movement update)
 
 // We will place letters randomly in the "room" area
