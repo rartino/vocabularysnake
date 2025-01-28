@@ -475,22 +475,28 @@ class GameScene extends Phaser.Scene {
 
   placeLetters() {
     // Remove any existing letters
-    this.lettersOnField.forEach(letter => letter.textObj.destroy());
+    this.lettersOnField.forEach(letterObj => {
+      if (letterObj.letterRect) {
+        letterObj.letterRect.destroy();
+      }
+      if (letterObj.letterText) {
+        letterObj.letterText.destroy();
+      }
+    });
     this.lettersOnField = [];
-
+  
     // Next correct letter we need:
     const neededLetter = this.currentWord.newLang[this.spelledLetters.length];
-
+  
     // Put that letter in the field:
     this.createLetter(neededLetter, true);
-
+  
     // Put extra letters that are random (and wrong)
     let extraCount = getNumberOfExtraLetters(this.level);
     for (let i = 0; i < extraCount; i++) {
-      // Generate a random letter from the ASCII (or you can do more advanced logic).
-      // Make sure it’s not the needed letter (to guarantee it’s "wrong").
+      // Generate a random letter from some set that is NOT the needed letter.
       let possibleLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÑñÁÉÍÓÚÜ';
-      let letterCandidate = neededLetter; 
+      let letterCandidate = neededLetter;
       while (letterCandidate === neededLetter) {
         letterCandidate = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
       }
