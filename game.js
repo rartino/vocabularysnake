@@ -89,16 +89,17 @@ function getNumberOfExtraLetters(level) {
  * 
  * The snake’s “head” is the first element in this.segments.
  */
+// -- Snake constructor replacement --
 class Snake {
   constructor(scene, startX, startY) {
     this.scene = scene;
     this.segments = [];
-    this.direction = 'right';  // 'left', 'right', 'up', 'down'
-    this.pendingDirection = null; // If the player just pressed a key, queue it up
+    this.direction = 'right';
+    this.pendingDirection = null;
 
-    // Create an initial snake of length 3
-    for (let i = 0; i < 3; i++) {
-      let x = startX - i * SEGMENT_SIZE; // place horizontally
+    // Start with length of 2
+    for (let i = 0; i < 2; i++) {
+      let x = startX - i * SEGMENT_SIZE;
       let y = startY;
       let segment = scene.add.rectangle(x, y, SEGMENT_SIZE, SEGMENT_SIZE, 0x00ff00).setOrigin(0);
       this.segments.push(segment);
@@ -109,89 +110,77 @@ class Snake {
     return this.segments[0];
   }
 
-  // The snake moves every UPDATE_INTERVAL ms, not every frame
   move() {
-    // If there's a pending direction change, apply it (classic Snake rule: 
-    // can’t do 180 turn if it’s directly opposite the current direction).
-    if (this.pendingDirection) {
-      if (!this.isOppositeDirection(this.pendingDirection)) {
-        this.direction = this.pendingDirection;
-      }
-      this.pendingDirection = null;
+    if (this.pendingDirection && !this.isOppositeDirection(this.pendingDirection)) {
+      this.direction = this.pendingDirection;
     }
+    this.pendingDirection = null;
 
-    // Move from the tail forward:
-    // 1. Move the last segment up to where the head was,
-    //    then shift positions for the rest in a chain.
-    // 2. The "head" moves in the direction set.
     const oldPositions = this.segments.map(s => ({ x: s.x, y: s.y }));
 
-    // Move head in the chosen direction
-    const head = this.head;
-    let newHeadX = head.x;
-    let newHeadY = head.y;
+    let newHeadX = this.head.x;
+    let newHeadY = this.head.y;
     switch (this.direction) {
       case 'left':  newHeadX -= SEGMENT_SIZE; break;
       case 'right': newHeadX += SEGMENT_SIZE; break;
       case 'up':    newHeadY -= SEGMENT_SIZE; break;
       case 'down':  newHeadY += SEGMENT_SIZE; break;
     }
-    head.setPosition(newHeadX, newHeadY);
+    this.head.setPosition(newHeadX, newHeadY);
 
-    // Move the rest of the segments to the position the previous 
-    // segment had
     for (let i = 1; i < this.segments.length; i++) {
       this.segments[i].setPosition(oldPositions[i - 1].x, oldPositions[i - 1].y);
     }
   }
 
-  // Grows the snake by appending a segment at the tail’s previous location
   grow() {
     const tail = this.segments[this.segments.length - 1];
-    // Create a new segment exactly where the tail is
     let newSegment = this.scene.add.rectangle(
-      tail.x, 
-      tail.y, 
-      SEGMENT_SIZE, 
-      SEGMENT_SIZE, 
+      tail.x,
+      tail.y,
+      SEGMENT_SIZE,
+      SEGMENT_SIZE,
       0x00ff00
     ).setOrigin(0);
-
     this.segments.push(newSegment);
   }
 
-  // Remove N segments from the tail
   shrink(count = 1) {
-    let removed = 0;
-    while (removed < count && this.segments.length > 0) {
+    // Remove `count` segments from the tail
+    while (count > 0 && this.segments.length > 0) {
       const tail = this.segments.pop();
       tail.destroy();
-      removed++;
+      count--;
+    }
+    // If snake ever drops below length 2, game over
+    if (this.segments.length < 2) {
+      this.scene.gameOver();
     }
   }
 
-  // If the snake hits itself, we cut off all segments from collisionPoint to tail
-  // collisionIndex is the index of the segment that was hit
   cutTailFrom(collisionIndex) {
-    // collisionIndex is inclusive, so the segment at collisionIndex also goes
-    const segmentsToRemove = this.segments.length - collisionIndex;
-    for (let i = 0; i < segmentsToRemove; i++) {
+    // Remove segments from collisionIndex to the end
+    const removeCount = this.segments.length - collisionIndex;
+    for (let i = 0; i < removeCount; i++) {
       let seg = this.segments.pop();
       seg.destroy();
     }
+    // Check length after cutting
+    if (this.segments.length < 2) {
+      this.scene.gameOver();
+    }
   }
 
-  setDirection(newDir) {
-    // We queue it for the next movement
-    this.pendingDirection = newDir;
+  setDirection(dir) {
+    this.pendingDirection = dir;
   }
 
   isOppositeDirection(dir) {
     return (
-      (this.direction === 'left' && dir === 'right') ||
-      (this.direction === 'right' && dir === 'left') ||
-      (this.direction === 'up' && dir === 'down') ||
-      (this.direction === 'down' && dir === 'up')
+      (this.direction === 'left'  && dir === 'right') ||
+      (this.direction === 'right' && dir === 'left')  ||
+      (this.direction === 'up'    && dir === 'down')  ||
+      (this.direction === 'down'  && dir === 'up')
     );
   }
 }
@@ -285,55 +274,57 @@ class GameScene extends Phaser.Scene {
 
   create(data) {
     this.level = data.level || 1;
-    
-    // Fill background with black
-    this.cameras.main.setBackgroundColor('#000000');
-
-    // Create the "room" boundaries
-    // We’ll keep a margin around the edges for text or UI
+    this.cameras.main.setBackgroundColor('#000000'); // Overall black if you like
+  
+    // Define the room (grey area) where the snake moves
     this.room = {
       x: ROOM_MARGIN,
-      y: ROOM_MARGIN + 40,            // 40 more for top text
+      y: ROOM_MARGIN + 40,
       width: this.scale.width - ROOM_MARGIN * 2,
       height: this.scale.height - ROOM_MARGIN * 2 - 40
     };
-
+  
+    // Draw grey background in that area
+    const bgGraphics = this.add.graphics();
+    bgGraphics.fillStyle(0x808080, 1); // grey
+    bgGraphics.fillRect(this.room.x, this.room.y, this.room.width, this.room.height);
+  
     // Create snake in the center of the room
     let centerX = this.room.x + this.room.width / 2;
     let centerY = this.room.y + this.room.height / 2;
     centerX = Phaser.Math.Snap.Floor(centerX, SEGMENT_SIZE);
     centerY = Phaser.Math.Snap.Floor(centerY, SEGMENT_SIZE);
     this.snake = new Snake(this, centerX, centerY);
-
-    // Setup keyboard cursors
+  
+    // Set up keyboard
     this.cursors = this.input.keyboard.createCursorKeys();
-
-    // Setup swipe/touch controls
     this.setupTouchControls();
-
-    // UI text fields: left = primary word, right = spelled new-language word
+  
+    // UI text
     this.primaryWordText = this.add.text(10, 10, '', { fontSize: '20px', fill: '#ffffff' });
     this.spelledWordText = this.add.text(this.scale.width - 10, 10, '', {
-      fontSize: '20px', 
+      fontSize: '20px',
       fill: '#ffffff'
     }).setOrigin(1, 0);
-
-    // Level text in the center top 
+  
     this.levelText = this.add.text(
-      this.scale.width / 2, 
-      10, 
-      `Level: ${this.level}`, 
+      this.scale.width / 2,
+      10,
+      `Level: ${this.level}`,
       { fontSize: '20px', fill: '#ffffff' }
     ).setOrigin(0.5, 0);
-
-    // Start the first word
+  
+    // We'll track the letters in this array
+    this.lettersOnField = [];
+  
+    // Start first word
     this.loadNewWord();
-
-    // We also want to re-add letters any time we pick the correct letter or the wrong letter
-    // so we’ll do that in handleLetterCollision.
-
-    // A quick R for "restart" if you want
+  
+    // Optional restart key
     this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+  
+    // For controlling snake movement timing
+    this.lastMoveTime = 0;
   }
 
   update(time, delta) {
@@ -417,15 +408,18 @@ class GameScene extends Phaser.Scene {
 
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
+  
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
-      let letterBounds = letterObj.textObj.getBounds();
-
-      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, letterBounds)) {
-        // Collided with letter
+      let rectBounds = letterObj.letterRect.getBounds();
+  
+      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, rectBounds)) {
+        // Collided with this letter
         this.processLetter(letterObj);
-        // Remove letter from the field
-        letterObj.textObj.destroy();
+  
+        // Remove from scene
+        letterObj.letterRect.destroy();
+        letterObj.letterText.destroy();
         this.lettersOnField.splice(i, 1);
       }
     }
@@ -504,21 +498,34 @@ class GameScene extends Phaser.Scene {
   }
 
   createLetter(letter, isCorrect) {
-    // Snap position to a multiple of SEGMENT_SIZE if you want a grid-like feel
+    // Random position snapped to SEGMENT_SIZE
     let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
     let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
     randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
     randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
-
-    // Create the text object
-    let textObj = this.add.text(randX, randY, letter, {
-      fontSize: '20px',
-      fill: isCorrect ? '#00ff00' : '#ffffff',
-      fontFamily: 'sans-serif'
-    }).setOrigin(0);
-
+  
+    // A white rectangle exactly SEGMENT_SIZE x SEGMENT_SIZE
+    let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff)
+      .setOrigin(0);
+  
+    // Outline if you like (optional):
+    // letterRect.setStrokeStyle(1, 0x000000);
+  
+    // Black text, centered in the rectangle
+    let letterText = this.add.text(
+      randX + SEGMENT_SIZE/2,
+      randY + SEGMENT_SIZE/2,
+      letter,
+      {
+        fontSize: '18px',
+        color: '#000000',
+        fontFamily: 'sans-serif'
+      }
+    ).setOrigin(0.5);
+  
     this.lettersOnField.push({
-      textObj: textObj,
+      letterRect: letterRect,
+      letterText: letterText,
       letter: letter,
       correct: isCorrect
     });
