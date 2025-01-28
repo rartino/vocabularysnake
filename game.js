@@ -192,6 +192,7 @@ class Snake {
  */
 class BootScene extends Phaser.Scene {
   constructor() {
+    console.trace();
     super('BootScene');
   }
 
