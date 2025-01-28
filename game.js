@@ -192,7 +192,6 @@ class Snake {
  */
 class BootScene extends Phaser.Scene {
   constructor() {
-    console.trace();
     super('BootScene');
   }
 
@@ -397,9 +396,11 @@ class GameScene extends Phaser.Scene {
       let seg = this.snake.segments[i];
       if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), seg.getBounds())) {
         // Cut the snake from i
+        console.log(head.getBounds());
+        console.log(seg.getBounds());
         this.snake.cutTailFrom(i);
         // If that leaves us with 0 length, game over
-        if (this.snake.segments.length === 0) {
+        if (this.snake.segments.length < 2) {
           this.gameOver();
         }
         break;
@@ -444,12 +445,10 @@ class GameScene extends Phaser.Scene {
     } else {
       // Wrong letter => blink red, lose one segment if possible
       this.flashRed();
-      if (this.snake.segments.length > 0) {
-        this.snake.shrink(1);
-        if (this.snake.segments.length === 0) {
-          this.gameOver();
-          return;
-        }
+      this.snake.shrink(1);
+      if (this.snake.segments.length < 2) {
+        this.gameOver();
+        return;
       }
       // Replace letters so the user can try again
       this.placeLetters();
