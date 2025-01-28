@@ -208,7 +208,7 @@ class BootScene extends Phaser.Scene {
     const titleText = this.add.text(
       this.scale.width / 2, 
       this.scale.height / 2 - 50, 
-      'Word Snake', 
+      'Vocabulary Snake', 
       {
         fontSize: '48px', 
         fill: '#ffffff',
