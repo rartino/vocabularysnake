@@ -208,7 +208,7 @@ class BootScene extends Phaser.Scene {
     const titleText = this.add.text(
       this.scale.width / 2, 
       this.scale.height / 2 - 50, 
-      'Vocabulary Snake z', 
+      'Vocabulary Snake a', 
       {
         fontSize: '48px', 
         fill: '#ffffff',
@@ -411,12 +411,11 @@ class GameScene extends Phaser.Scene {
 
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
-  
+    console.log(i,headBounds,this.lettersOnField[0].letterRect.getBounds());
+    
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
       let rectBounds = letterObj.letterRect.getBounds();
-
-      console.log(i,rectBounds,rectBounds)
       
       if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, rectBounds)) {
         // Collided with this letter
@@ -497,7 +496,7 @@ class GameScene extends Phaser.Scene {
     let extraCount = getNumberOfExtraLetters(this.level);
     for (let i = 0; i < extraCount; i++) {
       // Generate a random letter from some set that is NOT the needed letter.
-      let possibleLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÑñÁÉÍÓÚÜ';
+      let possibleLetters = 'abcdefghijklmnopqrstuvwxyz';
       let letterCandidate = neededLetter;
       while (letterCandidate === neededLetter) {
         letterCandidate = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
