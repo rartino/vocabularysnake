@@ -286,46 +286,58 @@ class GameScene extends Phaser.Scene {
   }
 
   create(data) {
-    this.level = data.level || 1;
-    this.cameras.main.setBackgroundColor('#000000');
-
-    // The "room" for the snake to move in
+    // Define the room (grey area) where the snake moves
     this.room = {
       x: ROOM_MARGIN,
-      y: ROOM_MARGIN + TOP_UI_HEIGHT,
+      y: ROOM_MARGIN + 40,
       width: this.scale.width - ROOM_MARGIN * 2,
-      height: this.scale.height - ROOM_MARGIN * 2 - TOP_UI_HEIGHT,
+      height: this.scale.height - ROOM_MARGIN * 2 - 40
     };
-
-    // Center the snake in the room
+  
+    // Draw grey background in that area
+    const bgGraphics = this.add.graphics();
+    bgGraphics.fillStyle(0x808080, 1); // grey
+    bgGraphics.fillRect(this.room.x, this.room.y, this.room.width, this.room.height);
+  
+    // Create snake in the center of the room
     let centerX = this.room.x + this.room.width / 2;
     let centerY = this.room.y + this.room.height / 2;
-    // Optionally snap to segment size
     centerX = Phaser.Math.Snap.Floor(centerX, SEGMENT_SIZE);
     centerY = Phaser.Math.Snap.Floor(centerY, SEGMENT_SIZE);
-
-    // Create snake (length = 3)
-    this.snake = new Snake(this, centerX, centerY, 3);
-
-    // Basic UI text
-    this.primaryWordText = this.add.text(10, 10, '', { fontSize: '20px', fill: '#ffffff' });
-    this.spelledWordText = this.add.text(this.scale.width - 10, 10, '', 
-      { fontSize: '20px', fill: '#ffffff' }).setOrigin(1, 0);
+    this.snake = new Snake(this, centerX, centerY);
+  
+    // Set up keyboard
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.setupTouchControls();
+  
+    // UI text
+    this.primaryWordText = this.add.text(this.scale.width/2, 20, '', { 
+      fontSize: '20px', 
+      fill: '#ffffff' 
+    }).setOrigin(0.5, 0);;
+    this.spelledWordText = this.add.text(this.scale.width/2, this.scale.height-10, '', {
+      fontSize: '20px',
+      fill: '#ffffff'
+    }).setOrigin(0.5, 0);
+  
     this.levelText = this.add.text(
-      this.scale.width / 2, 10, `Level: ${this.level}`,
+      this.scale.width / 2,
+      10,
+      `Level: ${this.level}`,
       { fontSize: '20px', fill: '#ffffff' }
     ).setOrigin(0.5, 0);
-
-    // Setup keyboard input
-    this.cursors = this.input.keyboard.createCursorKeys();
-    // R for quick "game over" or debug
-    this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
-
-    // Setup swipe/touch
-    this.setupTouchControls();
-
-    // Start with first word
+  
+    // We'll track the letters in this array
+    this.lettersOnField = [];
+  
+    // Start first word
     this.loadNewWord();
+  
+    // Optional restart key
+    this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+  
+    // For controlling snake movement timing
+    this.lastMoveTime = 0;
   }
 
   update(time, delta) {
@@ -452,17 +464,28 @@ class GameScene extends Phaser.Scene {
     this.spelledWordText.setText('');
 
     // Clear any leftover letters on the field
-    this.lettersOnField.forEach(l => l.textObj.destroy());
-    this.lettersOnField = [];
+    this.removeAllLetters();
 
     // Now place letters for the next required letter
     this.placeLetters();
   }
 
+  removeAllLetters() {
+    // Remove any existing letters
+    this.lettersOnField.forEach(letterObj => {
+      if (letterObj.letterRect) {
+        letterObj.letterRect.destroy();
+      }
+      if (letterObj.letterText) {
+        letterObj.letterText.destroy();
+      }
+    });
+    this.lettersOnField = [];    
+  }
+    
   placeLetters() {
     // Remove existing
-    this.lettersOnField.forEach(l => l.textObj.destroy());
-    this.lettersOnField = [];
+    this.removeAllLetters();
 
     // Next correct letter needed:
     const neededLetter = this.currentWord.newLang[this.spelledLetters.length];
@@ -484,21 +507,35 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnLetter(letter, isCorrect) {
-    // Random position in the room (snap to segment size if you want)
+    // Random position snapped to SEGMENT_SIZE
     let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
     let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
     randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
     randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
-
-    // Create text object
-    let textObj = this.add.text(randX, randY, letter, {
-      fontSize: '20px',
-      fill: isCorrect ? '#00ff00' : '#ffffff'
-    }).setOrigin(0);
-
-    this.lettersOnField.push({
-      textObj,
+  
+    // A white rectangle exactly SEGMENT_SIZE x SEGMENT_SIZE
+    let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff)
+      .setOrigin(0);
+  
+    // Outline if you like (optional):
+    // letterRect.setStrokeStyle(1, 0x000000);
+  
+    // Black text, centered in the rectangle
+    let letterText = this.add.text(
+      randX + SEGMENT_SIZE/2,
+      randY + SEGMENT_SIZE/2,
       letter,
+      {
+        fontSize: '18px',
+        color: '#000000',
+        fontFamily: 'sans-serif'
+      }
+    ).setOrigin(0.5);
+  
+    this.lettersOnField.push({
+      letterRect: letterRect,
+      letterText: letterText,
+      letter: letter,
       correct: isCorrect
     });
   }
