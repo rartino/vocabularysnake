@@ -399,7 +399,7 @@ class GameScene extends Phaser.Scene {
   handleSelfCollision() {
     // If head intersects any body part, cut the tail from there.
     const head = this.snake.head;
-    for (let i = 1; i < this.snake.segments.length; i++) {
+    for (let i = 2; i < this.snake.segments.length; i++) {
       let seg = this.snake.segments[i];
       // bounding-box check:
       if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), seg.getBounds())) {
