@@ -469,15 +469,11 @@ class GameScene extends Phaser.Scene {
     this.updatePrimaryWordText();
     this.updateSpelledWordText();
 
-    // Clear existing letters from the screen
-    this.lettersOnField.forEach(letter => letter.textObj.destroy());
-    this.lettersOnField = [];
-
-    // Place new letters
+    this.removeAllLetters();
     this.placeLetters();
   }
 
-  placeLetters() {
+  removeAllLetters() {
     // Remove any existing letters
     this.lettersOnField.forEach(letterObj => {
       if (letterObj.letterRect) {
@@ -487,7 +483,11 @@ class GameScene extends Phaser.Scene {
         letterObj.letterText.destroy();
       }
     });
-    this.lettersOnField = [];
+    this.lettersOnField = [];    
+  }
+  
+  placeLetters() {
+    this.removeAllLetters();
   
     // Next correct letter we need:
     const neededLetter = this.currentWord.newLang[this.spelledLetters.length];
