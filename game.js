@@ -417,12 +417,13 @@ class GameScene extends Phaser.Scene {
     const headBounds = this.snake.head.getBounds();
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
-      let letterBounds = letterObj.textObj.getBounds();
+      let letterBounds = letterObj.letterRect.getBounds();
       if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, letterBounds)) {
         // Collided with a letter
         this.processLetter(letterObj);
         // Remove it from screen
-        letterObj.textObj.destroy();
+        letterObj.letterText.destroy();
+        letterObj.letterRect.destroy();
         this.lettersOnField.splice(i, 1);
       }
     }
