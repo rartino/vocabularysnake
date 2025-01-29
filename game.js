@@ -411,7 +411,7 @@ class GameScene extends Phaser.Scene {
 
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
-    console.log(i,headBounds,this.lettersOnField[0].letterRect.getBounds());
+    console.log(headBounds,this.lettersOnField[0].letterRect.getBounds());
     
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
