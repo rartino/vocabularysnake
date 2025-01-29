@@ -41,14 +41,14 @@ const APP_VERSION = window.APP_VERSION || '(Unknown)';
 const WORD_LIST = [
   { primary: 'idrottshall', newLang: 'sports centre', difficulty: 1 },
   { primary: 'ta reda på', newLang: 'find out', difficulty: 1 },
-  { primary: 'bibliotek', newLang: 'library', difficulty: 2 },
-  { primary: 'språk', newLang: 'language', difficulty: 2 },
-  { primary: 'avslutningsvis', newLang: 'finally', difficulty: 2 },
-  { primary: 'mjukvaruingenjör', newLang: 'software engineer', difficulty: 3 },
-  { primary: 'bild', newLang: 'picture', difficulty: 3 },
-  { primary: 'viktig', newLang: 'important', difficulty: 3 },
+  { primary: 'bibliotek', newLang: 'library', difficulty: 1 },
+  { primary: 'språk', newLang: 'language', difficulty: 1 },
+  { primary: 'avslutningsvis', newLang: 'finally', difficulty: 1 },
+  { primary: 'mjukvaruingenjör', newLang: 'software engineer', difficulty: 1 },
+  { primary: 'bild', newLang: 'picture', difficulty: 1 },
+  { primary: 'viktig', newLang: 'important', difficulty: 1 },
   { primary: 'kladdig, stökig, rörig', newLang: 'messy', difficulty: 1 },
-  { primary: 'ta med din egen', newLang: 'bring your own', difficulty: 2 },
+  { primary: 'ta med din egen', newLang: 'bring your own', difficulty: 1 },
   // Add more words as you wish...
 ];
 
@@ -208,7 +208,7 @@ class BootScene extends Phaser.Scene {
     const titleText = this.add.text(
       this.scale.width / 2, 
       this.scale.height / 2 - 50, 
-      'Vocabulary Snake b', 
+      'Vocabulary Snake', 
       {
         fontSize: '48px', 
         fill: '#ffffff',
@@ -301,8 +301,8 @@ class GameScene extends Phaser.Scene {
     this.setupTouchControls();
   
     // UI text
-    this.primaryWordText = this.add.text(10, 10, '', { fontSize: '20px', fill: '#ffffff' });
-    this.spelledWordText = this.add.text(this.scale.width - 10, 10, '', {
+    this.primaryWordText = this.add.text(this.scale.width/4, 10, '', { fontSize: '20px', fill: '#ffffff' });
+    this.spelledWordText = this.add.text((this.scale.width*3)/4, 10, '', {
       fontSize: '20px',
       fill: '#ffffff'
     }).setOrigin(1, 0);
