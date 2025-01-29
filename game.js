@@ -208,7 +208,7 @@ class BootScene extends Phaser.Scene {
     const titleText = this.add.text(
       this.scale.width / 2, 
       this.scale.height / 2 - 50, 
-      'Vocabulary Snake a', 
+      'Vocabulary Snake b', 
       {
         fontSize: '48px', 
         fill: '#ffffff',
@@ -411,11 +411,14 @@ class GameScene extends Phaser.Scene {
 
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
-    console.log(headBounds,this.lettersOnField[0].letterRect.getBounds());
+    Phaser.Geom.Rectangle.Inflate(headBounds, -1, -1);
+
+    console.log(this.lettersOnField[0].letter,headBounds,this.lettersOnField[0].letterRect.getBounds());
     
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
       let rectBounds = letterObj.letterRect.getBounds();
+      Phaser.Geom.Rectangle.Inflate(rectBounds, -1, -1);
       
       if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, rectBounds)) {
         // Collided with this letter
