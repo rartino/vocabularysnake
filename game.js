@@ -65,8 +65,7 @@ function getRandomWordForLevel(level, random) {
  * Returns how many extra (wrong) letters to place, based on level
  */
 function getNumberOfExtraLetters(level) {
-  return Math.min(6 + level, 15); 
-  // e.g. level 1 => 7 extra letters, up to 15
+  return Math.min(2 + level, 15); 
 }
 
 /**
@@ -75,7 +74,7 @@ function getNumberOfExtraLetters(level) {
 const ROOM_MARGIN = 40;      // margin on each side of play area
 const TOP_UI_HEIGHT = 40;    // top space for text
 const SEGMENT_SIZE = 20;     // each snake segment is 20x20 px
-const SNAKE_SPEED = 10;     // speed in pixels/second
+const SNAKE_SPEED = 20;     // speed in pixels/second
 // We'll do collisions each frame, so no "tick" interval needed.
 
 /**
