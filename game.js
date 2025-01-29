@@ -429,43 +429,45 @@ class GameScene extends Phaser.Scene {
       }
     }
   }
-
+  
   processLetter(letterObj) {
-    // figure out which letter we *currently* need
+    // The index of the next needed letter in currentWord.newLang
     const nextNeededIndex = this.spelledLetters.length;
     const wordNeeded = this.currentWord.newLang;
   
+    // If we still have letters left to spell…
     if (nextNeededIndex < wordNeeded.length) {
-      // The character we need next
       const neededChar = wordNeeded[nextNeededIndex];
   
       if (letterObj.letter === neededChar) {
-        // Correct letter => grow + add to spelledLetters
+        // ---- Correct pick in correct order ----
         this.snake.grow();
         this.spelledLetters += letterObj.letter;
         this.spelledWordText.setText(this.spelledLetters);
   
-        // Check if we've spelled the entire word
+        // If fully spelled the entire word, load next
         if (this.spelledLetters.length >= wordNeeded.length) {
-          // Once finished, load a new word => new letters
           this.loadNewWord();
         }
-        // If not finished, do nothing special; 
-        // we do **not** re-place letters each time.
-      } 
-      else {
-        // Wrong letter => flash red, shrink, check for zero-length
+        // Otherwise, do nothing special; letters remain on the board
+      } else {
+        // ---- Wrong pick (out of order OR truly not in the word) ----
         this.flashRed();
         this.snake.shrink();
         if (this.snake.segments.length === 0) {
           this.gameOver();
+          return;
         }
-        // We do NOT re-place letters here either
+        
+        // If the letter is actually part of the word (just out of order),
+        // re-spawn it so the player can still collect it correctly later.
+        if (wordNeeded.includes(letterObj.letter)) {
+          this.spawnLetter(letterObj.letter);
+        }
       }
     }
   }
   
-
   loadNewWord() {
     // Pick a random word for our current level
     const random = new Phaser.Math.RandomDataGenerator();
@@ -474,14 +476,14 @@ class GameScene extends Phaser.Scene {
     // Reset spelled letters
     this.spelledLetters = '';
   
-    // Show the primary word (top/left or wherever you placed it)
+    // Display new primary word, clear spelled text
     this.primaryWordText.setText(this.currentWord.primary);
     this.spelledWordText.setText('');
   
-    // Clear any leftover letters from previous word
+    // Remove leftover letters from the previous word
     this.removeAllLetters();
   
-    // Place all letters in the new word + some extra random letters
+    // Place letters for the entire newLang word
     this.placeLetters();
   }
 
@@ -503,24 +505,23 @@ class GameScene extends Phaser.Scene {
     this.removeAllLetters();
   
     // 1) Place each letter from the entire newLang word
-    //    (so if newLang = "hello", we place 'h', 'e', 'l', 'l', 'o')
+    //    (so if newLang = "hello", we place 'h','e','l','l','o')
     const newLangWord = this.currentWord.newLang;
     for (let i = 0; i < newLangWord.length; i++) {
       const letter = newLangWord[i];
-      // Spawn a rectangle + text for this letter
       this.spawnLetter(letter);
     }
   
     // 2) Place extra (wrong) letters
     const extraCount = getNumberOfExtraLetters(this.level);
-    const possibleLetters = 'abcdefghijklmnopqrstuvwxyz'; // or any set you like
+    const possibleLetters = 'abcdefghijklmnopqrstuvwxyz';
   
     for (let i = 0; i < extraCount; i++) {
-      // Just pick a random letter from the alphabet
       let randLetter = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
       this.spawnLetter(randLetter);
     }
   }
+
 
 
   spawnLetter(letter, isCorrect) {
