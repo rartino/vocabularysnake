@@ -317,7 +317,7 @@ class GameScene extends Phaser.Scene {
       { fontSize: '20px', fill: '#ffffff' }
     ).setOrigin(0.5, 0);
 
-    let textheight = this.levelText.getBounds().size.y
+    let textheight = this.levelText.displayHeight;
     
     // UI text
     this.primaryWordText = this.add.text(this.scale.width/2, textheight+5, '', { 
