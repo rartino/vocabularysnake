@@ -1,6 +1,6 @@
 {
-    "name": "Amazegame",
-    "short_name": "Amazegame",
+    "name": "Wordsnake",
+    "short_name": "Wordsnake",
     "start_url": ".",
     "display": "fullscreen",
     "background_color": "#000000",
