@@ -128,7 +128,7 @@ class Snake {
     }
 
     // Distance to move this frame:
-    const distanceToMove = (this.speed * delta * Math.min(this.scale.width,this.scale.height)) / 100000;
+    const distanceToMove = (this.speed * delta) / 1000;
 
     // 1. Move head
     const head = this.segments[0];
@@ -353,7 +353,7 @@ class GameScene extends Phaser.Scene {
     this.handleInput();
 
     // Smoothly update the snake
-    this.snake.update(delta);
+    this.snake.update(delta* Math.min(this.scale.width,this.scale.height)/100);
 
     // After we move, check for collisions:
     this.handleRoomBounds();
