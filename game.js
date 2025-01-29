@@ -309,24 +309,26 @@ class GameScene extends Phaser.Scene {
     // Set up keyboard
     this.cursors = this.input.keyboard.createCursorKeys();
     this.setupTouchControls();
-  
-    // UI text
-    this.primaryWordText = this.add.text(this.scale.width/2, 20, '', { 
-      fontSize: '20px', 
-      fill: '#ffffff' 
-    }).setOrigin(0.5, 0);;
-    this.spelledWordText = this.add.text(this.scale.width/2, this.scale.height-10, '', {
-      fontSize: '20px',
-      fill: '#ffffff'
-    }).setOrigin(0.5, 0);
-  
+
     this.levelText = this.add.text(
       this.scale.width / 2,
       10,
       `Level: ${this.level}`,
       { fontSize: '20px', fill: '#ffffff' }
     ).setOrigin(0.5, 0);
-  
+
+    let textheight = this.levelText.getBounds().size.y
+    
+    // UI text
+    this.primaryWordText = this.add.text(this.scale.width/2, textheight+5, '', { 
+      fontSize: '20px', 
+      fill: '#ffffff' 
+    }).setOrigin(0.5, 0);;
+    this.spelledWordText = this.add.text(this.scale.width/2, this.scale.height-textheight-5, '', {
+      fontSize: '20px',
+      fill: '#ffffff'
+    }).setOrigin(0.5, 0); 
+ 
     // We'll track the letters in this array
     this.lettersOnField = [];
   
