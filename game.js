@@ -498,7 +498,7 @@ class GameScene extends Phaser.Scene {
 
     // Then spawn a bunch of extra (wrong) letters
     const extraCount = getNumberOfExtraLetters(this.level);
-    let possibleLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÑñÁÉÍÓÚÜ';
+    let possibleLetters = 'abcdefghijklmnopqrstuvwxyz';
 
     for (let i = 0; i < extraCount; i++) {
       let randLetter = neededLetter;
