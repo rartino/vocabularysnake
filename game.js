@@ -75,7 +75,7 @@ function getNumberOfExtraLetters(level) {
 const ROOM_MARGIN = 40;      // margin on each side of play area
 const TOP_UI_HEIGHT = 40;    // top space for text
 const SEGMENT_SIZE = 20;     // each snake segment is 20x20 px
-const SNAKE_SPEED = 100;     // speed in pixels/second
+const SNAKE_SPEED = 200;     // speed in pixels/second
 // We'll do collisions each frame, so no "tick" interval needed.
 
 /**
@@ -421,12 +421,12 @@ class GameScene extends Phaser.Scene {
       let letterObj = this.lettersOnField[i];
       let letterBounds = letterObj.letterRect.getBounds();
       if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, letterBounds)) {
-        // Collided with a letter
-        this.processLetter(letterObj);
         // Remove it from screen
         letterObj.letterText.destroy();
         letterObj.letterRect.destroy();
         this.lettersOnField.splice(i, 1);
+        // Collided with a letter
+        this.processLetter(letterObj);        
       }
     }
   }
