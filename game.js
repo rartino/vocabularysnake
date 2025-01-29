@@ -420,14 +420,14 @@ class GameScene extends Phaser.Scene {
       let rectBounds = letterObj.letterRect.getBounds();
       Phaser.Geom.Rectangle.Inflate(rectBounds, -1, -1);
       
-      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, rectBounds)) {
-        // Collided with this letter
-        this.processLetter(letterObj);
-  
+      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, rectBounds)) { 
         // Remove from scene
         letterObj.letterRect.destroy();
         letterObj.letterText.destroy();
         this.lettersOnField.splice(i, 1);
+
+        // Collided with this letter
+        this.processLetter(letterObj);
       }
     }
   }
