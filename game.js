@@ -353,7 +353,7 @@ class GameScene extends Phaser.Scene {
     this.handleInput();
 
     // Smoothly update the snake
-    this.snake.update(delta*min(this.scale.width,this.scale.height));
+    this.snake.update(delta*Math.min(this.scale.width,this.scale.height));
 
     // After we move, check for collisions:
     this.handleRoomBounds();
