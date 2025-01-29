@@ -412,9 +412,7 @@ class GameScene extends Phaser.Scene {
   handleLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
     Phaser.Geom.Rectangle.Inflate(headBounds, -1, -1);
-
-    console.log(this.lettersOnField[0].letter,headBounds,this.lettersOnField[0].letterRect.getBounds());
-    
+   
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
       let rectBounds = letterObj.letterRect.getBounds();
@@ -562,7 +560,6 @@ class GameScene extends Phaser.Scene {
 
   gameOver() {
     // For now, we’ll just return to BootScene, or you can show a "Game Over" scene
-    console.trace();
     this.scene.start('BootScene');
   }
 
