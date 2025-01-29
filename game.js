@@ -1,224 +1,43 @@
 /*******************************************************************
  * game.js
- * A Snake-like game for learning words in another language.
- * 
- * 1) Reads from a (sample) word list with three fields: 
- *    - primary language word
- *    - new language word
- *    - difficulty level
- * 
- * 2) On each “round,” we display a primary-language word on the top-left.
- *    The goal is to collect letters in the correct order to form the new-language word.
- *    
- * 3) If the player picks the correct next letter, the snake grows by 1 segment 
- *    and that letter appears in the spelled word on the top-right.
- * 
- * 4) If the player picks the wrong letter, the screen flashes red and the snake 
- *    loses one segment (if possible).
- * 
- * 5) Hitting your own snake’s body causes you to lose all segments from the collision 
- *    point to the tail.
- * 
- * 6) Once the new-language word is spelled, we move on to a new word. 
- *    The difficulty or “level” increases gradually, meaning:
- *       - At level N, we use word entries that have difficulty <= N.
- *       - With higher levels, we place more extra/incorrect letters in the room.
- * 
- * 7) If the snake reaches zero length, game over.
- * 
+ * A Snake/Word-learning game with tile-based, smooth movement
+ * in the style of your original "centipede" code.
  *******************************************************************/
 
-// To match your existing setup:
 const APP_VERSION = window.APP_VERSION || '(Unknown)';
 
 /**
- * -------------------------------------------------------------
  * SAMPLE WORD DATA
- * In a real app, you might load this from a server or separate file.
- * Each entry has: { primary: string, newLang: string, difficulty: number }
- * -------------------------------------------------------------
+ * Each entry: { primary, newLang, difficulty }.
  */
 const WORD_LIST = [
-  { primary: 'idrottshall', newLang: 'sports centre', difficulty: 1 },
-  { primary: 'ta reda på', newLang: 'find out', difficulty: 1 },
-  { primary: 'bibliotek', newLang: 'library', difficulty: 1 },
-  { primary: 'språk', newLang: 'language', difficulty: 1 },
-  { primary: 'avslutningsvis', newLang: 'finally', difficulty: 1 },
-  { primary: 'mjukvaruingenjör', newLang: 'software engineer', difficulty: 1 },
-  { primary: 'bild', newLang: 'picture', difficulty: 1 },
-  { primary: 'viktig', newLang: 'important', difficulty: 1 },
-  { primary: 'kladdig, stökig, rörig', newLang: 'messy', difficulty: 1 },
-  { primary: 'ta med din egen', newLang: 'bring your own', difficulty: 1 },
-  // Add more words as you wish...
+  { primary: 'Hello', newLang: 'Hola', difficulty: 1 },
+  { primary: 'Cat', newLang: 'Gato', difficulty: 1 },
+  { primary: 'Dog', newLang: 'Perro', difficulty: 2 },
+  { primary: 'Goodbye', newLang: 'Adiós', difficulty: 2 },
+  { primary: 'Thanks', newLang: 'Gracias', difficulty: 2 },
+  { primary: 'Mother', newLang: 'Madre', difficulty: 3 },
+  { primary: 'Father', newLang: 'Padre', difficulty: 3 },
+  { primary: 'Night', newLang: 'Noche', difficulty: 3 },
+  { primary: 'Day', newLang: 'Día', difficulty: 1 },
+  { primary: 'Food', newLang: 'Comida', difficulty: 2 },
+  // Add more as you like...
 ];
 
-/**
- * Helper to pick a random word whose difficulty <= current level
- */
+/** Filter words by difficulty, pick random */
 function getRandomWordForLevel(level, random) {
-  const validWords = WORD_LIST.filter(w => w.difficulty <= level);
-  const finalList = validWords.length > 0 ? validWords : WORD_LIST; 
+  const valid = WORD_LIST.filter(w => w.difficulty <= level);
+  const finalList = valid.length > 0 ? valid : WORD_LIST; // fallback if none
   return random.pick(finalList);
 }
 
-/**
- * Returns how many extra (wrong) letters to place, based on level
- */
+/** Decide how many "wrong" letters to show at this level */
 function getNumberOfExtraLetters(level) {
-  return Math.min(6 + level, 15); 
-  // e.g. level 1 => 7 extra letters, up to 15
+  return Math.min(6 + level, 15);
 }
 
-/**
- * Constants for UI layout, segment size, etc.
- */
-const ROOM_MARGIN = 40;      // margin on each side of play area
-const TOP_UI_HEIGHT = 40;    // top space for text
-const SEGMENT_SIZE = 20;     // each snake segment is 20x20 px
-const SNAKE_SPEED = 100;     // speed in pixels/second
-// We'll do collisions each frame, so no "tick" interval needed.
-
-/**
- * Snake class (smooth movement).
- * 
- * The snake is an array of Phaser.Rectangle objects. On each
- * update(delta), we move the head by (speed*delta)/1000 in the current
- * direction, and each body segment tries to follow the previous
- * segment's old position (like a "centipede" approach).
- */
-class Snake {
-  constructor(scene, startX, startY, length = 3) {
-    this.scene = scene;
-    this.speed = SNAKE_SPEED;
-    this.segments = [];
-    // The current direction we are heading (dx, dy):
-    this.direction = { x: 1, y: 0 }; // start moving right
-    this.pendingDirection = null; // store recent input
-
-    // Create the initial snake
-    // Head is segment[0], then segment[1], etc
-    for (let i = 0; i < length; i++) {
-      let x = startX - i * SEGMENT_SIZE;
-      let y = startY;
-      let color = (i === 0) ? 0x00cc00 : 0x00ff00; // head slightly different
-      let rect = scene.add.rectangle(x, y, SEGMENT_SIZE, SEGMENT_SIZE, color)
-                       .setOrigin(0.5);
-      // Store previous location for "following" logic
-      rect.prevX = x;
-      rect.prevY = y;
-      this.segments.push(rect);
-    }
-  }
-
-  // A convenience for the head
-  get head() {
-    return this.segments[0];
-  }
-
-  // Called every frame from GameScene.update(...).
-  // We move the head smoothly based on how much time has passed.
-  update(delta) {
-    // If there's a pending direction (from input),
-    // and it’s not a 180° reversal, update direction now:
-    if (this.pendingDirection) {
-      if (!this.isOppositeDirection(this.pendingDirection)) {
-        this.direction = { ...this.pendingDirection };
-      }
-      this.pendingDirection = null;
-    }
-
-    // Distance to move this frame:
-    const distanceToMove = (this.speed * delta) / 1000;
-
-    // 1. Move head
-    const head = this.segments[0];
-    head.prevX = head.x;
-    head.prevY = head.y;
-    head.x += this.direction.x * distanceToMove;
-    head.y += this.direction.y * distanceToMove;
-
-    // 2. For each subsequent segment, move it towards
-    //    the "prevX, prevY" of the segment in front of it.
-    for (let i = 1; i < this.segments.length; i++) {
-      let seg = this.segments[i];
-      let leader = this.segments[i - 1]; // the segment in front
-      let dx = leader.prevX - seg.x;
-      let dy = leader.prevY - seg.y;
-      let dist = Math.sqrt(dx * dx + dy * dy);
-
-      // If this gap is > SEGMENT_SIZE, we move the segment forward
-      // some portion of 'distanceToMove' to keep them from spacing out too far.
-      if (dist > SEGMENT_SIZE) {
-        // Only move up to (dist - SEGMENT_SIZE) so segments
-        // remain roughly SEGMENT_SIZE apart
-        let moveStep = Math.min(distanceToMove, dist - SEGMENT_SIZE);
-        let angle = Math.atan2(dy, dx);
-
-        seg.prevX = seg.x;
-        seg.prevY = seg.y;
-        seg.x += Math.cos(angle) * moveStep;
-        seg.y += Math.sin(angle) * moveStep;
-      } else {
-        // Even if dist <= SEGMENT_SIZE, we still store the current position
-        seg.prevX = seg.x;
-        seg.prevY = seg.y;
-      }
-    }
-  }
-
-  // Attempt to set a new direction (e.g. from arrow keys)
-  setDirection(dx, dy) {
-    this.pendingDirection = { x: dx, y: dy };
-  }
-
-  // A quick check if the new direction is a direct 180° reversal
-  isOppositeDirection(newDir) {
-    return (
-      (this.direction.x === 1 && newDir.x === -1) ||
-      (this.direction.x === -1 && newDir.x === 1) ||
-      (this.direction.y === 1 && newDir.y === -1) ||
-      (this.direction.y === -1 && newDir.y === 1)
-    );
-  }
-
-  // Add one segment at the tail's position
-  grow() {
-    let tail = this.segments[this.segments.length - 1];
-    let newSegment = this.scene.add.rectangle(
-      tail.x,
-      tail.y,
-      SEGMENT_SIZE,
-      SEGMENT_SIZE,
-      0x00ff00
-    ).setOrigin(0.5);
-
-    // Initialize prevX/Y to match tail
-    newSegment.prevX = tail.x;
-    newSegment.prevY = tail.y;
-    this.segments.push(newSegment);
-  }
-
-  // Remove one segment from the tail (if we have any)
-  shrink() {
-    if (this.segments.length > 0) {
-      let seg = this.segments.pop();
-      seg.destroy();
-    }
-  }
-
-  // If you collide with yourself, remove from collision point to tail
-  cutTailFrom(index) {
-    while (this.segments.length > index) {
-      let seg = this.segments.pop();
-      seg.destroy();
-    }
-  }
-}
-
-
-/**
- * BootScene:
- * Simple title screen that transitions into the GameScene.
+/** SCENE: BootScene
+ * Simple title screen, then go to GameScene(level=1).
  */
 class BootScene extends Phaser.Scene {
   constructor() {
@@ -226,27 +45,31 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // this.load.image('background', 'background.png'); // if you have one
+    // If you have a background image, load here
+    // this.load.image('background', 'background.png');
   }
 
   create() {
     this.cameras.main.setBackgroundColor('#000000');
 
-    const titleText = this.add.text(
+    // Title
+    this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 - 50,
       'Word Snake',
       { fontSize: '48px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
-    const instructionText = this.add.text(
+    // Instruction
+    this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 + 20,
       'Tap or Press SPACE to Play',
       { fontSize: '24px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
-    const versionText = this.add.text(
+    // Version
+    this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 + 80,
       `Version: ${APP_VERSION}`,
@@ -257,18 +80,248 @@ class BootScene extends Phaser.Scene {
     this.input.keyboard.once('keydown-SPACE', () => {
       this.scene.start('GameScene', { level: 1 });
     });
-    // Or start on pointerdown
+
+    // Start on pointerdown
     this.input.once('pointerdown', () => {
       this.scene.start('GameScene', { level: 1 });
     });
   }
 }
 
+/*******************************************************************
+ * CONSTANTS for the Snake & board
+ ******************************************************************/
+const TILE_SIZE = 20;         // Each tile is 20x20 pixels
+const SNAKE_SPEED = 6;        // tiles per second
+const ROOM_MARGIN = 40;       // margin around the play area
+const TOP_UI_HEIGHT = 40;     // space for top text
 
-/**
- * GameScene:
- * The main, smooth-moving snake + word-learning gameplay.
- */
+/*******************************************************************
+ * The Snake class (tile-based, partial movement).
+ * Similar to your "centipede" logic but under user control.
+ ******************************************************************/
+class Snake {
+  constructor(scene, startTileX, startTileY, length = 3) {
+    this.scene = scene;
+    this.speed = SNAKE_SPEED;  // in tiles/sec
+    this.direction = { dx: 1, dy: 0 }; // move right by default
+    this.pendingDirection = null;      // store last input
+
+    this.segments = [];
+    for (let i = 0; i < length; i++) {
+      const tileX = startTileX - i; // horizontally placed
+      const tileY = startTileY;
+      // Create a rectangular segment
+      let color = (i === 0) ? 0x00cc00 : 0x00ff00; // head is slightly different
+      const xPos = this.toPixelX(tileX);
+      const yPos = this.toPixelY(tileY);
+
+      let seg = scene.add.rectangle(xPos, yPos, TILE_SIZE, TILE_SIZE, color);
+      seg.setOrigin(0.5);
+      seg.tileX = tileX;
+      seg.tileY = tileY;
+      seg.prevX = xPos;
+      seg.prevY = yPos;
+      seg.targetX = xPos;
+      seg.targetY = yPos;
+      this.segments.push(seg);
+    }
+  }
+
+  // Convert tile coords to pixel coords for centering
+  toPixelX(tileX) {
+    return tileX * TILE_SIZE + TILE_SIZE / 2 + this.scene.room.x;
+  }
+  toPixelY(tileY) {
+    return tileY * TILE_SIZE + TILE_SIZE / 2 + this.scene.room.y;
+  }
+
+  // Head segment is always at index 0
+  get head() {
+    return this.segments[0];
+  }
+
+  // Called by the scene’s update(time, delta)
+  update(delta) {
+    // 1) Check if we have a pending direction and it’s not a 180° turn
+    if (this.pendingDirection) {
+      let { dx, dy } = this.pendingDirection;
+      // Prevent direct reversal
+      if (!this.isOpposite(dx, dy)) {
+        // We only apply the new direction if the head is at its tile center 
+        // (i.e., done moving to the old target). Otherwise, the direction
+        // will apply once it arrives. This is typical tile-based Snake logic.
+        const head = this.head;
+        const distToTarget = Phaser.Math.Distance.Between(
+          head.x, head.y, head.targetX, head.targetY
+        );
+        if (distToTarget < 1) {
+          this.direction = { dx, dy };
+        }
+      }
+      this.pendingDirection = null;
+    }
+
+    // 2) Calculate how many pixels to move this frame
+    const distanceToMove = (this.speed * delta * TILE_SIZE) / 1000;
+
+    // Update head first
+    this.updateHead(distanceToMove);
+
+    // Update body segments
+    for (let i = 1; i < this.segments.length; i++) {
+      this.updateBodySegment(i, distanceToMove);
+    }
+  }
+
+  updateHead(distanceToMove) {
+    const head = this.head;
+
+    // If the head has no target, set a new target = current tile + direction
+    if (head.targetX === null || head.targetY === null) {
+      this.setNewTargetForSegment(0);
+    }
+
+    // Move partially toward target
+    let dx = head.targetX - head.x;
+    let dy = head.targetY - head.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist <= distanceToMove) {
+      // We can fully reach the target this frame
+      head.x = head.targetX;
+      head.y = head.targetY;
+      head.prevX = head.x;
+      head.prevY = head.y;
+
+      // Update tile coords based on direction
+      head.tileX += this.direction.dx;
+      head.tileY += this.direction.dy;
+
+      // Snap to tile center, set next target
+      this.setNewTargetForSegment(0);
+    } else {
+      // Move partially
+      let angle = Math.atan2(dy, dx);
+      head.prevX = head.x;
+      head.prevY = head.y;
+      head.x += Math.cos(angle) * distanceToMove;
+      head.y += Math.sin(angle) * distanceToMove;
+    }
+  }
+
+  updateBodySegment(i, distanceToMove) {
+    const seg = this.segments[i];
+    const prevSeg = this.segments[i - 1];
+
+    // If the body segment has no target (at startup), set it to its own coords
+    if (seg.targetX === null || seg.targetY === null) {
+      seg.targetX = seg.x;
+      seg.targetY = seg.y;
+    }
+
+    // If this segment has "arrived" at its target, set a new target = 
+    // the previous segment's *old* position (prevX/prevY).
+    let distToTarget = Phaser.Math.Distance.Between(seg.x, seg.y, seg.targetX, seg.targetY);
+    if (distToTarget < 1) {
+      seg.x = seg.targetX;
+      seg.y = seg.targetY;
+      seg.prevX = seg.x;
+      seg.prevY = seg.y;
+      seg.targetX = prevSeg.prevX;
+      seg.targetY = prevSeg.prevY;
+      return;
+    }
+
+    // Otherwise move partially
+    let dx = seg.targetX - seg.x;
+    let dy = seg.targetY - seg.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist <= distanceToMove) {
+      // Snap
+      seg.prevX = seg.x;
+      seg.prevY = seg.y;
+      seg.x = seg.targetX;
+      seg.y = seg.targetY;
+    } else {
+      // partial
+      let angle = Math.atan2(dy, dx);
+      seg.prevX = seg.x;
+      seg.prevY = seg.y;
+      seg.x += Math.cos(angle) * distanceToMove;
+      seg.y += Math.sin(angle) * distanceToMove;
+    }
+  }
+
+  // For the head: sets a new target = (tileX + direction.dx, tileY + direction.dy)
+  setNewTargetForSegment(index) {
+    const seg = this.segments[index];
+    if (index === 0) {
+      // HEAD
+      const newTileX = seg.tileX + this.direction.dx;
+      const newTileY = seg.tileY + this.direction.dy;
+      seg.targetX = this.toPixelX(newTileX);
+      seg.targetY = this.toPixelY(newTileY);
+    } else {
+      // BODY
+      // Usually we do "seg.targetX = the segment in front's prevX," done in updateBodySegment
+      // so no extra logic needed here for the body in this function.
+    }
+  }
+
+  // Enqueue a direction change (we’ll apply it once we get to tile center)
+  setDirection(dx, dy) {
+    this.pendingDirection = { dx, dy };
+  }
+
+  isOpposite(dx, dy) {
+    return (
+      (this.direction.dx === 1 && dx === -1) ||
+      (this.direction.dx === -1 && dx === 1) ||
+      (this.direction.dy === 1 && dy === -1) ||
+      (this.direction.dy === -1 && dy === 1)
+    );
+  }
+
+  // Add a segment at the tail (like “grow”)
+  grow() {
+    const tail = this.segments[this.segments.length - 1];
+
+    // Create a new segment in the exact same spot as the tail
+    let newSeg = this.scene.add.rectangle(tail.x, tail.y, TILE_SIZE, TILE_SIZE, 0x00ff00);
+    newSeg.setOrigin(0.5);
+    newSeg.prevX = tail.x;
+    newSeg.prevY = tail.y;
+    // Keep tileX/tileY the same (it will correct itself as it moves)
+    newSeg.tileX = tail.tileX;
+    newSeg.tileY = tail.tileY;
+    newSeg.targetX = tail.targetX;
+    newSeg.targetY = tail.targetY;
+
+    this.segments.push(newSeg);
+  }
+
+  // Remove 1 segment from the tail
+  shrink() {
+    if (this.segments.length > 0) {
+      const seg = this.segments.pop();
+      seg.destroy();
+    }
+  }
+
+  // If we collide with ourselves, we cut from collision index to the tail
+  cutTailFrom(index) {
+    while (this.segments.length > index) {
+      const seg = this.segments.pop();
+      seg.destroy();
+    }
+  }
+}
+
+/*******************************************************************
+ * GameScene
+ * The main “snake collects letters” gameplay. 
+ ******************************************************************/
 class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene');
@@ -276,12 +329,12 @@ class GameScene extends Phaser.Scene {
     // Word logic
     this.currentWord = null;
     this.spelledLetters = '';
-    this.level = 1;
 
     // Snake
     this.snake = null;
+    this.level = 1;
 
-    // Letters that appear on field
+    // Letters in the field
     this.lettersOnField = [];
   }
 
@@ -289,7 +342,7 @@ class GameScene extends Phaser.Scene {
     this.level = data.level || 1;
     this.cameras.main.setBackgroundColor('#000000');
 
-    // The "room" for the snake to move in
+    // The playable “room”
     this.room = {
       x: ROOM_MARGIN,
       y: ROOM_MARGIN + TOP_UI_HEIGHT,
@@ -297,58 +350,61 @@ class GameScene extends Phaser.Scene {
       height: this.scale.height - ROOM_MARGIN * 2 - TOP_UI_HEIGHT,
     };
 
-    // Center the snake in the room
-    let centerX = this.room.x + this.room.width / 2;
-    let centerY = this.room.y + this.room.height / 2;
-    // Optionally snap to segment size
-    centerX = Phaser.Math.Snap.Floor(centerX, SEGMENT_SIZE);
-    centerY = Phaser.Math.Snap.Floor(centerY, SEGMENT_SIZE);
+    // Convert that to how many tiles wide/high
+    this.tileCountX = Math.floor(this.room.width / TILE_SIZE);
+    this.tileCountY = Math.floor(this.room.height / TILE_SIZE);
 
-    // Create snake (length = 3)
-    this.snake = new Snake(this, centerX, centerY, 3);
+    // Start the snake near the center tile
+    const startTileX = Math.floor(this.tileCountX / 2);
+    const startTileY = Math.floor(this.tileCountY / 2);
 
-    // Basic UI text
+    this.snake = new Snake(this, startTileX, startTileY, 3);
+
+    // UI texts
     this.primaryWordText = this.add.text(10, 10, '', { fontSize: '20px', fill: '#ffffff' });
-    this.spelledWordText = this.add.text(this.scale.width - 10, 10, '', 
-      { fontSize: '20px', fill: '#ffffff' }).setOrigin(1, 0);
+    this.spelledWordText = this.add.text(this.scale.width - 10, 10, '', { 
+      fontSize: '20px', 
+      fill: '#ffffff' 
+    }).setOrigin(1, 0);
     this.levelText = this.add.text(
-      this.scale.width / 2, 10, `Level: ${this.level}`,
+      this.scale.width / 2,
+      10,
+      `Level: ${this.level}`,
       { fontSize: '20px', fill: '#ffffff' }
     ).setOrigin(0.5, 0);
 
-    // Setup keyboard input
+    // Keyboard input
     this.cursors = this.input.keyboard.createCursorKeys();
-    // R for quick "game over" or debug
     this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
-    // Setup swipe/touch
+    // Swipe/touch
     this.setupTouchControls();
 
-    // Start with first word
+    // Start with a new word
     this.loadNewWord();
   }
 
   update(time, delta) {
-    // R to force game over for debugging
+    // Press "R" => immediate gameOver (debug)
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.gameOver();
       return;
     }
 
-    // Handle input each frame
+    // Handle input
     this.handleInput();
 
-    // Smoothly update the snake
+    // Update snake positions (smooth movement)
     this.snake.update(delta);
 
-    // After we move, check for collisions:
-    this.handleRoomBounds();
-    this.handleSelfCollision();
-    this.handleLetterCollisions();
+    // Check collisions
+    this.checkWallCollision();
+    this.checkSelfCollision();
+    this.checkLetterCollisions();
   }
 
   handleInput() {
-    // Keyboard input => set direction
+    // Keyboard
     if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
       this.snake.setDirection(-1, 0);
     } else if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
@@ -359,39 +415,39 @@ class GameScene extends Phaser.Scene {
       this.snake.setDirection(0, 1);
     }
 
-    // Touch swipe => set direction
+    // Touch-based swipe
     if (this.swipeDirection) {
       switch (this.swipeDirection) {
-        case 'left':  this.snake.setDirection(-1, 0); break;
-        case 'right': this.snake.setDirection(1, 0);  break;
-        case 'up':    this.snake.setDirection(0, -1); break;
-        case 'down':  this.snake.setDirection(0, 1);  break;
+        case 'left':  this.snake.setDirection(-1, 0);  break;
+        case 'right': this.snake.setDirection(1, 0);   break;
+        case 'up':    this.snake.setDirection(0, -1);  break;
+        case 'down':  this.snake.setDirection(0, 1);   break;
       }
       this.swipeDirection = null;
     }
   }
 
-  handleRoomBounds() {
-    // If head goes out of the "room," game over.
+  checkWallCollision() {
+    // If the snake's head tile is outside the tileCount range => game over
     const head = this.snake.head;
-    if (
-      head.x < this.room.x ||
-      head.x > this.room.x + this.room.width ||
-      head.y < this.room.y ||
-      head.y > this.room.y + this.room.height
-    ) {
+    // Convert (head.x, head.y) back to tile coords
+    let tileX = Math.floor((head.x - this.room.x) / TILE_SIZE);
+    let tileY = Math.floor((head.y - this.room.y) / TILE_SIZE);
+
+    if (tileX < 0 || tileX >= this.tileCountX || tileY < 0 || tileY >= this.tileCountY) {
       this.gameOver();
     }
   }
 
-  handleSelfCollision() {
-    // If head intersects any body part, cut the tail from there.
-    const head = this.snake.head;
+  checkSelfCollision() {
+    // If the head's bounding box intersects any body segment => cut tail
+    const headBounds = this.snake.head.getBounds();
     for (let i = 1; i < this.snake.segments.length; i++) {
       let seg = this.snake.segments[i];
-      // bounding-box check:
-      if (Phaser.Geom.Intersects.RectangleToRectangle(head.getBounds(), seg.getBounds())) {
-        // cut tail from i
+      let segBounds = seg.getBounds();
+
+      if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, segBounds)) {
+        // cut from i
         this.snake.cutTailFrom(i);
         if (this.snake.segments.length === 0) {
           this.gameOver();
@@ -401,39 +457,38 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  handleLetterCollisions() {
+  checkLetterCollisions() {
     const headBounds = this.snake.head.getBounds();
     for (let i = this.lettersOnField.length - 1; i >= 0; i--) {
       let letterObj = this.lettersOnField[i];
       let letterBounds = letterObj.textObj.getBounds();
       if (Phaser.Geom.Intersects.RectangleToRectangle(headBounds, letterBounds)) {
-        // Collided with a letter
-        this.processLetter(letterObj);
-        // Remove it from screen
+        // Collides with that letter
+        this.handleLetter(letterObj);
         letterObj.textObj.destroy();
         this.lettersOnField.splice(i, 1);
       }
     }
   }
 
-  processLetter(letterObj) {
+  handleLetter(letterObj) {
     if (letterObj.correct) {
-      // Correct letter => grow + add letter to spelled word
+      // Good letter => snake grows, add letter to spelled word
       this.snake.grow();
       this.spelledLetters += letterObj.letter;
       this.spelledWordText.setText(this.spelledLetters);
 
-      // Check if we've spelled the entire word
+      // Check if we finished the word
       if (this.spelledLetters.length >= this.currentWord.newLang.length) {
         this.loadNewWord();
       } else {
-        // Re-place letters so we always have fresh random positions
+        // Re-place letters
         this.placeLetters();
       }
     } else {
-      // Wrong letter => flash red + shrink
+      // Wrong letter => flash red, snake loses segment
       this.flashRed();
-      this.snake.shrink(); 
+      this.snake.shrink();
       if (this.snake.segments.length === 0) {
         this.gameOver();
         return;
@@ -444,61 +499,63 @@ class GameScene extends Phaser.Scene {
   }
 
   loadNewWord() {
-    // Pick a random word for our current level
+    // pick a new word
     const random = new Phaser.Math.RandomDataGenerator();
     this.currentWord = getRandomWordForLevel(this.level, random);
     this.spelledLetters = '';
     this.primaryWordText.setText(this.currentWord.primary);
     this.spelledWordText.setText('');
 
-    // Clear any leftover letters on the field
-    this.lettersOnField.forEach(l => l.textObj.destroy());
+    // remove old letters
+    this.lettersOnField.forEach(obj => obj.textObj.destroy());
     this.lettersOnField = [];
 
-    // Now place letters for the next required letter
+    // place letters for next needed letter
     this.placeLetters();
   }
 
   placeLetters() {
-    // Remove existing
-    this.lettersOnField.forEach(l => l.textObj.destroy());
+    // clear existing
+    this.lettersOnField.forEach(obj => obj.textObj.destroy());
     this.lettersOnField = [];
 
-    // Next correct letter needed:
+    // The next correct letter we need
     const neededLetter = this.currentWord.newLang[this.spelledLetters.length];
 
-    // Put that one correct letter in the room
-    this.spawnLetter(neededLetter, true);
+    // place that one correct letter
+    this.createLetter(neededLetter, true);
 
-    // Then spawn a bunch of extra (wrong) letters
+    // plus some wrong letters
     const extraCount = getNumberOfExtraLetters(this.level);
-    let possibleLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÑñÁÉÍÓÚÜ';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÑñÁÉÍÓÚÜ';
 
     for (let i = 0; i < extraCount; i++) {
-      let randLetter = neededLetter;
-      while (randLetter === neededLetter) {
-        randLetter = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
+      let randomLetter = neededLetter;
+      while (randomLetter === neededLetter) {
+        randomLetter = Phaser.Utils.Array.GetRandom(possible.split(''));
       }
-      this.spawnLetter(randLetter, false);
+      this.createLetter(randomLetter, false);
     }
   }
 
-  spawnLetter(letter, isCorrect) {
-    // Random position in the room (snap to segment size if you want)
-    let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
-    let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
-    randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
-    randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
+  createLetter(letter, isCorrect) {
+    // pick a random tile in [0..tileCountX-1], [0..tileCountY-1]
+    // then convert to pixel coords
+    let tx = Phaser.Math.Between(0, this.tileCountX - 1);
+    let ty = Phaser.Math.Between(0, this.tileCountY - 1);
 
-    // Create text object
-    let textObj = this.add.text(randX, randY, letter, {
+    let xPos = this.room.x + tx * TILE_SIZE;
+    let yPos = this.room.y + ty * TILE_SIZE;
+
+    // We'll place the text with a slight offset so it's visually centered in the tile
+    let textObj = this.add.text(xPos + 2, yPos + 2, letter, {
       fontSize: '20px',
       fill: isCorrect ? '#00ff00' : '#ffffff'
-    }).setOrigin(0);
+    });
 
     this.lettersOnField.push({
-      textObj,
-      letter,
+      textObj: textObj,
+      letter: letter,
       correct: isCorrect
     });
   }
@@ -511,19 +568,20 @@ class GameScene extends Phaser.Scene {
   }
 
   gameOver() {
-    // Return to the BootScene, or replace with a "GameOverScene"
+    // Return to BootScene or a dedicated "GameOverScene"
     this.scene.start('BootScene');
   }
 
   setupTouchControls() {
     this.swipeDirection = null;
     let swipeCoordX, swipeCoordY, swipeCoordX2, swipeCoordY2;
-    const swipeMinDistance = 20;
+    let swipeMinDistance = 20;
 
     this.input.on('pointerdown', (pointer) => {
       swipeCoordX = pointer.downX;
       swipeCoordY = pointer.downY;
     });
+
     this.input.on('pointerup', (pointer) => {
       swipeCoordX2 = pointer.upX;
       swipeCoordY2 = pointer.upY;
@@ -544,10 +602,7 @@ class GameScene extends Phaser.Scene {
   }
 }
 
-
-/**
- * Phaser config. Re-using your scaling approach.
- */
+/** Phaser config */
 const config = {
   type: Phaser.AUTO,
   backgroundColor: '#000000',
@@ -557,19 +612,16 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: window.innerWidth,
     height: window.innerHeight,
-    parent: 'game-container',
+    parent: 'game-container'
   },
   render: {
     pixelArt: true,
-    antialias: false,
+    antialias: false
   },
   physics: {
     default: 'arcade',
-    arcade: {
-      gravity: { y: 0 },
-      debug: false,
-    },
-  },
+    arcade: { gravity: { y: 0 }, debug: false }
+  }
 };
 
 const game = new Phaser.Game(config);
