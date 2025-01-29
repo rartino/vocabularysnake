@@ -75,7 +75,7 @@ function getNumberOfExtraLetters(level) {
 const ROOM_MARGIN = 40;      // margin on each side of play area
 const TOP_UI_HEIGHT = 40;    // top space for text
 const SEGMENT_SIZE = 20;     // each snake segment is 20x20 px
-const SNAKE_SPEED = 100;     // speed in pixels/second
+const SNAKE_SPEED = 10;     // speed in pixels/second
 // We'll do collisions each frame, so no "tick" interval needed.
 
 /**
@@ -353,7 +353,7 @@ class GameScene extends Phaser.Scene {
     this.handleInput();
 
     // Smoothly update the snake
-    this.snake.update(delta);
+    this.snake.update(delta*min(this.scale.width,this.scale.height));
 
     // After we move, check for collisions:
     this.handleRoomBounds();
@@ -432,44 +432,57 @@ class GameScene extends Phaser.Scene {
   }
 
   processLetter(letterObj) {
-    if (letterObj.correct) {
-      // Correct letter => grow + add letter to spelled word
-      this.snake.grow();
-      this.spelledLetters += letterObj.letter;
-      this.spelledWordText.setText(this.spelledLetters);
-
-      // Check if we've spelled the entire word
-      if (this.spelledLetters.length >= this.currentWord.newLang.length) {
-        this.loadNewWord();
-      } else {
-        // Re-place letters so we always have fresh random positions
-        this.placeLetters();
+    // figure out which letter we *currently* need
+    const nextNeededIndex = this.spelledLetters.length;
+    const wordNeeded = this.currentWord.newLang;
+  
+    if (nextNeededIndex < wordNeeded.length) {
+      // The character we need next
+      const neededChar = wordNeeded[nextNeededIndex];
+  
+      if (letterObj.letter === neededChar) {
+        // Correct letter => grow + add to spelledLetters
+        this.snake.grow();
+        this.spelledLetters += letterObj.letter;
+        this.spelledWordText.setText(this.spelledLetters);
+  
+        // Check if we've spelled the entire word
+        if (this.spelledLetters.length >= wordNeeded.length) {
+          // Once finished, load a new word => new letters
+          this.loadNewWord();
+        }
+        // If not finished, do nothing special; 
+        // we do **not** re-place letters each time.
+      } 
+      else {
+        // Wrong letter => flash red, shrink, check for zero-length
+        this.flashRed();
+        this.snake.shrink();
+        if (this.snake.segments.length === 0) {
+          this.gameOver();
+        }
+        // We do NOT re-place letters here either
       }
-    } else {
-      // Wrong letter => flash red + shrink
-      this.flashRed();
-      this.snake.shrink(); 
-      if (this.snake.segments.length === 0) {
-        this.gameOver();
-        return;
-      }
-      // Re-place letters
-      this.placeLetters();
     }
   }
+  
 
   loadNewWord() {
     // Pick a random word for our current level
     const random = new Phaser.Math.RandomDataGenerator();
     this.currentWord = getRandomWordForLevel(this.level, random);
+  
+    // Reset spelled letters
     this.spelledLetters = '';
+  
+    // Show the primary word (top/left or wherever you placed it)
     this.primaryWordText.setText(this.currentWord.primary);
     this.spelledWordText.setText('');
-
-    // Clear any leftover letters on the field
+  
+    // Clear any leftover letters from previous word
     this.removeAllLetters();
-
-    // Now place letters for the next required letter
+  
+    // Place all letters in the new word + some extra random letters
     this.placeLetters();
   }
 
@@ -487,27 +500,29 @@ class GameScene extends Phaser.Scene {
   }
     
   placeLetters() {
-    // Remove existing
+    // Remove any letters currently on the field
     this.removeAllLetters();
-
-    // Next correct letter needed:
-    const neededLetter = this.currentWord.newLang[this.spelledLetters.length];
-
-    // Put that one correct letter in the room
-    this.spawnLetter(neededLetter, true);
-
-    // Then spawn a bunch of extra (wrong) letters
+  
+    // 1) Place each letter from the entire newLang word
+    //    (so if newLang = "hello", we place 'h', 'e', 'l', 'l', 'o')
+    const newLangWord = this.currentWord.newLang;
+    for (let i = 0; i < newLangWord.length; i++) {
+      const letter = newLangWord[i];
+      // Spawn a rectangle + text for this letter
+      this.spawnLetter(letter);
+    }
+  
+    // 2) Place extra (wrong) letters
     const extraCount = getNumberOfExtraLetters(this.level);
-    let possibleLetters = 'abcdefghijklmnopqrstuvwxyz';
-
+    const possibleLetters = 'abcdefghijklmnopqrstuvwxyz'; // or any set you like
+  
     for (let i = 0; i < extraCount; i++) {
-      let randLetter = neededLetter;
-      while (randLetter === neededLetter) {
-        randLetter = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
-      }
-      this.spawnLetter(randLetter, false);
+      // Just pick a random letter from the alphabet
+      let randLetter = Phaser.Utils.Array.GetRandom(possibleLetters.split(''));
+      this.spawnLetter(randLetter);
     }
   }
+
 
   spawnLetter(letter, isCorrect) {
     // Random position snapped to SEGMENT_SIZE
