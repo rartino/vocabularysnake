@@ -253,7 +253,7 @@ class BootScene extends Phaser.Scene {
     
     const titleText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 - 100,
+      this.scale.height / 2 - 150,
       'Word Snake',
       { fontSize: '48px', fill: '#ffffff' }
     ).setOrigin(0.5);
@@ -273,14 +273,14 @@ class BootScene extends Phaser.Scene {
     
     const instructionText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 + 40,
+      this.scale.height / 2 + 80,
       'Tap or Press SPACE to Play',
       { fontSize: '24px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
     const versionText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 + 100,
+      this.scale.height / 2 + 150,
       `Version: ${APP_VERSION}`,
       { fontSize: '18px', fill: '#ffffff' }
     ).setOrigin(0.5);
