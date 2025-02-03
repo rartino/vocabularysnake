@@ -144,7 +144,7 @@ class Snake {
     }
 
     // Distance to move this frame:
-    const distanceToMove = ((this.speed + 0.1*this.segments.length) * delta) / 1000;
+    const distanceToMove = ((this.speed + this.segments.length) * delta) / 1000;
 
     // 1. Move head
     const head = this.segments[0];
@@ -248,6 +248,9 @@ class BootScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#000000');
 
+    let stored = localStorage.getItem('wordSnakeLeaderboard');
+    let leaderboard = stored ? JSON.parse(stored) : [];
+    
     const titleText = this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 - 50,
@@ -255,6 +258,19 @@ class BootScene extends Phaser.Scene {
       { fontSize: '48px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
+    let leaderboardTextString = 'Top 5 Longest Snakes:\n';
+    leaderboard.forEach((score, i) => {
+      leaderboardTextString += `${i+1}. ${score}\n`;
+    });
+
+    // Display the leaderboard lines
+    const leaderboardText = this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2 - 30,
+      leaderboardTextString,
+      { fontSize: '20px', fill: '#ffffff', align: 'center' }
+    ).setOrigin(0.5);
+    
     const instructionText = this.add.text(
       this.scale.width / 2,
       this.scale.height / 2 + 20,
@@ -321,7 +337,17 @@ class GameScene extends Phaser.Scene {
     centerX = Phaser.Math.Snap.Floor(centerX, SEGMENT_SIZE);
     centerY = Phaser.Math.Snap.Floor(centerY, SEGMENT_SIZE);
     this.snake = new Snake(this, centerX, centerY);
+
+    this.currentLength = this.snake.segments.length;
+    this.bestThisGame = this.currentLength;
   
+    this.scoreText = this.add.text(
+      this.scale.width - 10,
+      10,
+      `${this.currentLength} (${this.bestThisGame})`, 
+      { fontSize: '20px', fill: '#ffffff' }
+    ).setOrigin(1, 0);
+    
     // Set up keyboard
     this.cursors = this.input.keyboard.createCursorKeys();
     this.setupTouchControls();
@@ -376,7 +402,15 @@ class GameScene extends Phaser.Scene {
     this.handleSelfCollision();
     this.handleLetterCollisions();
   }
-
+  
+  updateScoreDisplay() {
+    this.currentLength = this.snake.segments.length;
+    if (this.currentLength > this.bestThisGame) {
+      this.bestThisGame = this.currentLength;
+    }
+    this.scoreText.setText(`${this.currentLength} (${this.bestThisGame})`);
+  }
+  
   handleInput() {
     // Keyboard input => set direction
     if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
@@ -458,7 +492,9 @@ class GameScene extends Phaser.Scene {
   
       if (letterObj.letter === neededChar) {
         // ---- Correct pick in correct order ----
+        this.flash(true);
         this.snake.grow();
+        this.updateScoreDisplay();
         this.spelledLetters += letterObj.letter;
         this.spelledWordText.setText(this.spelledLetters);
   
@@ -469,8 +505,9 @@ class GameScene extends Phaser.Scene {
         // Otherwise, do nothing special; letters remain on the board
       } else {
         // ---- Wrong pick (out of order OR truly not in the word) ----
-        this.flashRed();
+        this.flash(false);
         this.snake.shrink();
+        this.updateScoreDisplay();
         if (this.snake.segments.length === 0) {
           this.gameOver();
           return;
@@ -575,15 +612,38 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  flashRed() {
-    this.cameras.main.setBackgroundColor('#ff0000');
-    this.time.delayedCall(100, () => {
-      this.cameras.main.setBackgroundColor('#000000');
-    });
+  flash(good) {
+    if (good) {
+      this.cameras.main.setBackgroundColor('#00ff00');
+      this.time.delayedCall(100, () => {
+        this.cameras.main.setBackgroundColor('#000000');
+      });
+    } else {
+      this.cameras.main.setBackgroundColor('#ff0000');
+      this.time.delayedCall(100, () => {
+        this.cameras.main.setBackgroundColor('#000000');
+      });
+    }
   }
 
   gameOver() {
-    // Return to the BootScene, or replace with a "GameOverScene"
+    // Retrieve existing leaderboard
+    let stored = localStorage.getItem('wordSnakeLeaderboard');
+    let leaderboard = stored ? JSON.parse(stored) : [];
+  
+    // Insert this game’s best length
+    leaderboard.push(this.bestThisGame);
+  
+    // Sort descending
+    leaderboard.sort((a, b) => b - a);
+  
+    // Keep top 5
+    leaderboard = leaderboard.slice(0, 5);
+  
+    // Save back to localStorage
+    localStorage.setItem('wordSnakeLeaderboard', JSON.stringify(leaderboard));
+  
+    // Then go back to BootScene
     this.scene.start('BootScene');
   }
 
