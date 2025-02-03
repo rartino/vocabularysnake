@@ -253,12 +253,12 @@ class BootScene extends Phaser.Scene {
     
     const titleText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 - 50,
+      this.scale.height / 2 - 100,
       'Word Snake',
       { fontSize: '48px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
-    let leaderboardTextString = 'Top 5 Longest Snakes:\n';
+    let leaderboardTextString = 'Longest Snakes:\n';
     leaderboard.forEach((score, i) => {
       leaderboardTextString += `${i+1}. ${score}\n`;
     });
@@ -273,14 +273,14 @@ class BootScene extends Phaser.Scene {
     
     const instructionText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 + 20,
+      this.scale.height / 2 + 40,
       'Tap or Press SPACE to Play',
       { fontSize: '24px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
     const versionText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 + 80,
+      this.scale.height / 2 + 100,
       `Version: ${APP_VERSION}`,
       { fontSize: '18px', fill: '#ffffff' }
     ).setOrigin(0.5);
@@ -330,7 +330,21 @@ class GameScene extends Phaser.Scene {
     const bgGraphics = this.add.graphics();
     bgGraphics.fillStyle(0x808080, 1); // grey
     bgGraphics.fillRect(this.room.x, this.room.y, this.room.width, this.room.height);
+
+    // Add a pause button on the top-left, for example
+    this.paused = false; // track whether the game is paused
+    this.pauseButton = this.add.text(
+      10, 
+      10, 
+      'Pause', 
+      { fontSize: '20px', fill: '#ffffff', backgroundColor: '#000000' }
+    ).setPadding(6).setInteractive();
   
+    // When clicked, toggle paused state
+    this.pauseButton.on('pointerdown', () => {
+      this.togglePause();
+    });
+    
     // Create snake in the center of the room
     let centerX = this.room.x + this.room.width / 2;
     let centerY = this.room.y + this.room.height / 2;
@@ -384,13 +398,41 @@ class GameScene extends Phaser.Scene {
     this.lastMoveTime = 0;
   }
 
-  update(time, delta) {
+  togglePause() {
+    this.paused = !this.paused;
+    if (this.paused) {
+      // Show some overlay text, or change the pause button label
+      this.pauseButton.setText('Resume');
+      // You might also fade background or display "Paused" in center:
+      this.pausedText = this.add.text(
+        this.scale.width / 2,
+        this.scale.height / 2,
+        'PAUSED',
+        { fontSize: '48px', fill: '#ff0000' }
+      ).setOrigin(0.5);
+    } else {
+      // Removing or hiding any "Paused" overlay
+      this.pauseButton.setText('Pause');
+      if (this.pausedText) {
+        this.pausedText.destroy();
+        this.pausedText = null;
+      }
+    }
+  }
+  
+  update(time, delta) {  
     // R to force game over for debugging
     if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.gameOver();
       return;
     }
 
+    if (this.paused) {
+      // If paused, skip updating the snake or checking collisions.
+      // Optionally, still allow certain input if you want.
+      return;
+    }
+    
     // Handle input each frame
     this.handleInput();
 
@@ -577,25 +619,61 @@ class GameScene extends Phaser.Scene {
   }
 
 
-
-  spawnLetter(letter, isCorrect) {
-    // Random position snapped to SEGMENT_SIZE
-    let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
-    let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
-    randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
-    randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
   
-    // A white rectangle exactly SEGMENT_SIZE x SEGMENT_SIZE
-    let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff)
-      .setOrigin(0);
+  spawnLetter(letter) {
+    const maxAttempts = 100; // avoid infinite loops
+    for (let i = 0; i < maxAttempts; i++) {
+      // Random position snapped to SEGMENT_SIZE
+      let randX = Phaser.Math.Between(this.room.x, this.room.x + this.room.width - SEGMENT_SIZE);
+      let randY = Phaser.Math.Between(this.room.y, this.room.y + this.room.height - SEGMENT_SIZE);
+      randX = Phaser.Math.Snap.Floor(randX, SEGMENT_SIZE);
+      randY = Phaser.Math.Snap.Floor(randY, SEGMENT_SIZE);
+      
+      // Candidate rectangle for our letter
+      let candidateRect = new Phaser.Geom.Rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE);
   
-    // Outline if you like (optional):
-    // letterRect.setStrokeStyle(1, 0x000000);
+      // Check collision with existing letters
+      let overlaps = false;
+      for (let existing of this.lettersOnField) {
+        let existingBounds = existing.letterRect.getBounds();
+        if (Phaser.Geom.Intersects.RectangleToRectangle(candidateRect, existingBounds)) {
+          overlaps = true;
+          break;
+        }
+      }
   
-    // Black text, centered in the rectangle
+      // If no overlap, place the new letter here
+      if (!overlaps) {
+        let letterRect = this.add.rectangle(randX, randY, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff).setOrigin(0);
+        let letterText = this.add.text(
+          randX + SEGMENT_SIZE/2,
+          randY + SEGMENT_SIZE/2,
+          letter,
+          {
+            fontSize: '18px',
+            color: '#000000',
+            fontFamily: 'sans-serif'
+          }
+        ).setOrigin(0.5);
+  
+        this.lettersOnField.push({
+          letterRect: letterRect,
+          letterText: letterText,
+          letter: letter
+        });
+  
+        // Done placing, so exit the function
+        return;
+      }
+    }
+  
+    // If we exhaust maxAttempts, we’ll just place it anyway (rare corner case)
+    console.warn('Could not find non-overlapping position, placing anyway.');
+    // Fallback if needed:
+    let letterRect = this.add.rectangle(this.room.x, this.room.y, SEGMENT_SIZE, SEGMENT_SIZE, 0xffffff).setOrigin(0);
     let letterText = this.add.text(
-      randX + SEGMENT_SIZE/2,
-      randY + SEGMENT_SIZE/2,
+      this.room.x + SEGMENT_SIZE/2,
+      this.room.y + SEGMENT_SIZE/2,
       letter,
       {
         fontSize: '18px',
@@ -607,8 +685,7 @@ class GameScene extends Phaser.Scene {
     this.lettersOnField.push({
       letterRect: letterRect,
       letterText: letterText,
-      letter: letter,
-      correct: isCorrect
+      letter: letter
     });
   }
 
