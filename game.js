@@ -144,7 +144,7 @@ class Snake {
     }
 
     // Distance to move this frame:
-    const distanceToMove = ((this.speed + 0.1*this.length) * delta) / 1000;
+    const distanceToMove = ((this.speed + 0.1*this.segments.length) * delta) / 1000;
 
     // 1. Move head
     const head = this.segments[0];
