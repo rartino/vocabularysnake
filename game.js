@@ -38,6 +38,7 @@ const APP_VERSION = window.APP_VERSION || '(Unknown)';
  * Each entry has: { primary: string, newLang: string, difficulty: number }
  * -------------------------------------------------------------
  */
+/*
 const WORD_LIST = [
   { primary: 'idrottshall', newLang: 'sports centre', difficulty: 1 },
   { primary: 'ta reda på', newLang: 'find out', difficulty: 1 },
@@ -51,6 +52,22 @@ const WORD_LIST = [
   { primary: 'ta med din egen', newLang: 'bring your own', difficulty: 1 },
   // Add more words as you wish...
 ];
+*/
+
+const WORD_LIST = [
+  { primary: 'låt oss gå', newLang: "let's go", difficulty: 1 },
+  { primary: 'Hur mycket är klockan?', newLang: 'What time is it?', difficulty: 1 },
+  { primary: 'cykeltur', newLang: 'bike ride', difficulty: 1 },
+  { primary: 'däck', newLang: 'tyre', difficulty: 1 },
+  { primary: 'punktering', newLang: 'flat tyre', difficulty: 1 },
+  { primary: 'galen', newLang: 'crazy', difficulty: 1 },
+  { primary: 'pengar', newLang: 'money', difficulty: 1 },
+  { primary: 'dålig arm', newLang: 'bad arm', difficulty: 1 },
+  { primary: 'bra idé', newLang: 'good idea', difficulty: 1 },
+  { primary: 'hämta upp någon', newLang: 'pick someone up', difficulty: 1 },
+  // Add more words as you wish...
+];
+
 
 /**
  * Helper to pick a random word whose difficulty <= current level
@@ -127,7 +144,7 @@ class Snake {
     }
 
     // Distance to move this frame:
-    const distanceToMove = (this.speed * delta) / 1000;
+    const distanceToMove = ((this.speed + 0.1*this.length) * delta) / 1000;
 
     // 1. Move head
     const head = this.segments[0];
