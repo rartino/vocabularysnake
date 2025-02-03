@@ -240,14 +240,28 @@ class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
   }
-
+  
   preload() {
-    // this.load.image('background', 'background.png'); // if you have one
+    this.load.audio('titleMusic', 'title_music.mp3');
+  
+    // If you have a background image or other assets:
+    // this.load.image('background', 'background.png');
   }
-
+  
   create() {
     this.cameras.main.setBackgroundColor('#000000');
 
+    this.titleMusic = this.sound.add('titleMusic', {
+      loop: true,
+      volume: 0.8,
+    });
+    this.titleMusic.play();
+  
+    // If you want to stop it automatically when the scene shuts down:
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.titleMusic.stop();
+    });
+    
     let stored = localStorage.getItem('wordSnakeLeaderboard');
     let leaderboard = stored ? JSON.parse(stored) : [];
     
@@ -273,8 +287,8 @@ class BootScene extends Phaser.Scene {
     
     const instructionText = this.add.text(
       this.scale.width / 2,
-      this.scale.height / 2 + 80,
-      'Tap or Press SPACE to Play',
+      this.scale.height / 2 + 70,
+      'Tap or Press\nSPACE to Play',
       { fontSize: '24px', fill: '#ffffff' }
     ).setOrigin(0.5);
 
@@ -317,7 +331,23 @@ class GameScene extends Phaser.Scene {
     this.lettersOnField = [];
   }
 
+  preload() {
+    this.load.audio('gameMusic', 'game_music.mp3');
+  }
+  
   create(data) {
+
+    this.gameMusic = this.sound.add('gameMusic', {
+      loop: true,
+      volume: 0.8,
+    });
+    this.gameMusic.play();
+  
+    // If you want to stop it automatically when the scene shuts down:
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.gameMusic.stop();
+    });
+    
     // Define the room (grey area) where the snake moves
     this.room = {
       x: ROOM_MARGIN,
@@ -617,8 +647,6 @@ class GameScene extends Phaser.Scene {
       this.spawnLetter(randLetter);
     }
   }
-
-
   
   spawnLetter(letter) {
     const maxAttempts = 100; // avoid infinite loops
