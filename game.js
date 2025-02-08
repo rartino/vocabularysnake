@@ -53,7 +53,7 @@ const WORD_LIST = [
   // Add more words as you wish...
 ];
 */
-
+/*
 const WORD_LIST = [
   { primary: 'låt oss gå', newLang: "let's go", difficulty: 1 },
   { primary: 'Hur mycket är klockan?', newLang: 'What time is it?', difficulty: 1 },
@@ -67,7 +67,20 @@ const WORD_LIST = [
   { primary: 'hämta upp någon', newLang: 'pick someone up', difficulty: 1 },
   // Add more words as you wish...
 ];
-
+*/
+const WORD_LIST = [
+  { primary: 'möjlighet', newLang: "possibility", difficulty: 1 },
+  { primary: 'stjäla', newLang: 'steal', difficulty: 1 },
+  { primary: 'busshållplats', newLang: 'bus stop', difficulty: 1 },
+  { primary: 'träna', newLang: 'train', difficulty: 1 },
+  { primary: 'morbror/farbror', newLang: 'uncle', difficulty: 1 },
+  { primary: 'jag måste säga', newLang: 'I have to say', difficulty: 1 },
+  { primary: 'utan', newLang: 'without', difficulty: 1 },
+  { primary: 'svårt', newLang: 'difficult', difficulty: 1 },
+  { primary: 'stanna', newLang: 'stay', difficulty: 1 },
+  { primary: 'betala', newLang: 'pay', difficulty: 1 },
+  // Add more words as you wish...
+];
 
 /**
  * Helper to pick a random word whose difficulty <= current level
